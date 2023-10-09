@@ -1,8 +1,10 @@
 #include <iostream>
 
-int   fitness(int state);
+int   fitness  (int state);
 int** selection(int** population, int* fitnesses, int sumFitnesses);
-void  iterate(int** population);
-void  printChildGen  (int gen, int** population, int* fitnesses, int sumFitnesses, int crossovers [8]={}, int mutations [8]={});
+int*  crossover(int** population, int** parents);
+int*  mutate(int** population);
+void  iterate  (int** population);
+void  printChildGen  (int gen, int** population, int* crossovers=NULL, int* mutations=NULL);
 void  printParentGen (int gen, int** population, int sumFitnesses);
-void  printGeneration(int gen, int** population, bool parent, int* fitnesses, int sumFitnesses, int crossovers[8] = {}, int mutations[8] = {});
+void  printGeneration(int gen, int** population, bool parent, int sumFitnesses, int* crossovers=NULL, int* mutations=NULL);
