@@ -3,6 +3,10 @@
 
 using namespace std;
 
+// For playing around with population size.
+int populationSizeMultiplier = 1;
+int populationSize;
+
 /*
  * Determines the fitness score of any given state.
  */
@@ -27,11 +31,11 @@ int getFitness(uint16_t state) {
  * Selects the parents of the next generation.
  */
 uint16_t** selectFromPopulation(uint16_t** population, int* fitnesses, int sumFitnesses) {
-    uint16_t** newParents = new uint16_t*[8];
+    uint16_t** newParents = new uint16_t*[populationSize];
     // Weighted random selection from population.
-    for (int i=0; i<8; i++) {
+    for (int i=0; i<populationSize; i++) {
         int r = rand() % sumFitnesses;
-        for (int j=0; j<8; j++) {
+        for (int j=0; j<populationSize; j++) {
             if (r<fitnesses[j]) {
                 newParents[i] = new uint16_t(*population[j]);
                 // Prevents "asexual" reproduction.
@@ -53,8 +57,8 @@ uint16_t** selectFromPopulation(uint16_t** population, int* fitnesses, int sumFi
  * Performs the "genetic crossover" at a random point.
  */
 int* crossover(uint16_t** population, uint16_t** parents) {
-    int* crossovers = new int[8];
-    for (int i=0; i<8; i+=2) {
+    int* crossovers = new int[populationSize];
+    for (int i=0; i<populationSize; i+=2) {
         int r  = rand();
         int ci = (r%7+1)*2;
         crossovers [i]   = 16-ci;
@@ -77,8 +81,8 @@ int* crossover(uint16_t** population, uint16_t** parents) {
  * "Mutates" a random variable in about 30% of the population.
  */
 int* mutate(uint16_t** population) {
-    int* mutations = new int[8];
-    for (int i=0; i<8; i++) {
+    int* mutations = new int[populationSize];
+    for (int i=0; i<populationSize; i++) {
         int  r  = rand();
         if (r%10<3) {
             int ci = (r%8)*2;
@@ -107,11 +111,11 @@ int* mutate(uint16_t** population) {
 
 void iterate(int gen, uint16_t** population) {
     uint16_t** parents;
-    int*  fitnesses    = new int[8];
+    int*  fitnesses    = new int[populationSize];
     int   sumFitnesses = 0;
     int*  crossovers;
     int*  mutations;
-    for (int i=0; i<8; i++) {
+    for (int i=0; i<populationSize; i++) {
         fitnesses[i]  = getFitness(*population[i]);
         sumFitnesses += fitnesses[i];
     }
@@ -124,10 +128,10 @@ void iterate(int gen, uint16_t** population) {
     crossovers = crossover(population, parents);
     mutations  = mutate(population);
 
-    printParentGen(gen, parents, sumFitnesses, crossovers, mutations);
-    printChildGen(gen, population);
+    printParentGen(gen, parents, sumFitnesses, crossovers);
+    printChildGen(gen, population, mutations);
 
-    for (int i=0; i<8; i++) {
+    for (int i=0; i<populationSize; i++) {
         delete parents[i];
         parents[i] = NULL;
     }
@@ -140,17 +144,17 @@ void iterate(int gen, uint16_t** population) {
 /*
  * Wrapper function for printing child generations.
  */
-void printChildGen(int gen, uint16_t** population)
+void printChildGen(int gen, uint16_t** population, int* mutations)
 {
-    printGeneration(gen, population, false, 0, NULL, NULL);
+    printGeneration(gen, population, false, 0, NULL, mutations);
 }
 
 /*
  * Wrapper function for printing parent generations.
  */
-void printParentGen(int gen, uint16_t** population, int sumFitnesses, int* crossovers, int* mutations)
+void printParentGen(int gen, uint16_t** population, int sumFitnesses, int* crossovers)
 {
-    printGeneration(gen, population, true, sumFitnesses, crossovers, mutations);
+    printGeneration(gen, population, true, sumFitnesses, crossovers, NULL);
 }
 
 /*
@@ -163,33 +167,38 @@ void printGeneration(int        gen,
                      int*       crossovers,
                      int*       mutations)
 {
-    int* fitnesses = new int[8];
-    for (int i=0; i<8; i++) {
+    int* fitnesses = new int[populationSize];
+    for (int i=0; i<populationSize; i++) {
         fitnesses[i]  = getFitness(*population[i]);
         sumFitnesses += !parent?fitnesses[i]:0;
     }
     if (!crossovers) {
-        crossovers = new int[8] {-1, -1, -1, -1, -1, -1, -1, -1 };
+        crossovers = new int[populationSize];
+        for (int i=0; i<populationSize; i++) { crossovers[i] = -1; }
     }
     if (!mutations) {
-        mutations = new int[8] {-1, -1, -1, -1, -1, -1, -1, -1 };
+        mutations = new int[populationSize];
+        for (int i=0; i<populationSize; i++) { mutations[i] = -1; }
     }
 
-    cout << (parent?"Parent ":"") << "Generation " << gen << endl;
-    for (int i=0; i<8; i++) {
-        cout << "[ ";
+    cout << (parent?"\tParent ":"Descendant ") << "Generation " << gen << endl;
+    for (int i=0; i<populationSize; i++) {
         if (parent) {
+            cout << "\t[ ";
             for (int j=14; j>=0; j-=2) {
-                if (j==mutations[i]) { cout << "~"; }
-                else { cout << (((*population[i]>>j)&3)+1); }
-                cout << (j==crossovers[i]?"|":" ") << (j>0?"":"]");
+                cout << (((*population[i]>>j)&3)+1)
+                     << (j==crossovers[i]?"|":" ")
+                     << (j>0?"":"]");
             }
-            cout << " (" << fitnesses[i] << ")" << ((i+1)%4<2?"\n":"\n\t");
+            cout << " (" << fitnesses[i] << ")" << endl;
         } else {
+            cout << "[";
             for (int j=14; j>=0; j-=2) {
-                cout << (((*population[i]>>j)&3)+1) << " ";
+                cout << (j+2==mutations[i]?")":(j==mutations[i]?"(":" "))
+                     << (((*population[i]>>j)&3)+1)
+                     << (j==0?(j==mutations[i]?")] ":" ] "):"");
             }
-            cout << "] Fitness: " << fitnesses[i];
+            cout << "Fitness: " << fitnesses[i];
             printf("\t(%.3f%%)\n",(float(fitnesses[i])/float(sumFitnesses)));
         }
     }
@@ -203,29 +212,34 @@ void printGeneration(int        gen,
 
 int main(int argc, char const *argv[])
 {
+    if (argc > 1) { populationSizeMultiplier = int(*argv[1])-48; }
+    populationSize = 8 * populationSizeMultiplier;
+
     srand((unsigned) time(NULL));
-    uint16_t** population = new uint16_t*[8];
+    uint16_t** population = new uint16_t*[populationSize];
 
     /*
      * NOTE: A state or individual is represented as a string of
      * 16 bits where each variable takes two bits. Because of this
      * restriction, 1 is represented as 00 and 3 as 11.
      */
-    population[0] = new uint16_t(0b0000000000000000);  // [1,1,1,1,1,1,1,1]
-    population[1] = new uint16_t(0b0101010101010101);  // [2,2,2,2,2,2,2,2]
-    population[2] = new uint16_t(0b1010101010101010);  // [3,3,3,3,3,3,3,3]
-    population[3] = new uint16_t(0b1111111111111111);  // [4,4,4,4,4,4,4,4]
-    population[4] = new uint16_t(0b0001101100011011);  // [1,2,3,4,1,2,3,4]
-    population[5] = new uint16_t(0b1110010011100100);  // [4,3,2,1,4,3,2,1]
-    population[6] = new uint16_t(0b0001000100010001);  // [1,2,1,2,1,2,1,2]
-    population[7] = new uint16_t(0b1011101110111011);  // [3,4,3,4,3,4,3,4]
+    for (int i=0; i<populationSize; i+=8) {
+        population[i+0] = new uint16_t(0b0000000000000000);  // [1,1,1,1,1,1,1,1]
+        population[i+1] = new uint16_t(0b0101010101010101);  // [2,2,2,2,2,2,2,2]
+        population[i+2] = new uint16_t(0b1010101010101010);  // [3,3,3,3,3,3,3,3]
+        population[i+3] = new uint16_t(0b1111111111111111);  // [4,4,4,4,4,4,4,4]
+        population[i+4] = new uint16_t(0b0001101100011011);  // [1,2,3,4,1,2,3,4]
+        population[i+5] = new uint16_t(0b1110010011100100);  // [4,3,2,1,4,3,2,1]
+        population[i+6] = new uint16_t(0b0001000100010001);  // [1,2,1,2,1,2,1,2]
+        population[i+7] = new uint16_t(0b1011101110111011);  // [3,4,3,4,3,4,3,4]
+    }
 
     printChildGen(0, population);
     for (int i=1; i<=5; i++) {
         iterate(i, population);
     }
 
-    for (int i=0; i<8; i++) {
+    for (int i=0; i<populationSize; i++) {
         delete population[i];
         population[i] = NULL;
     }
