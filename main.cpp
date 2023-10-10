@@ -121,11 +121,11 @@ void iterate(int gen, uint16_t** population) {
      * AND MUTATIONS.
      */
     parents = selectFromPopulation(population, fitnesses, sumFitnesses);
-    printParentGen(gen, parents, sumFitnesses);
-
     crossovers = crossover(population, parents);
     mutations  = mutate(population);
-    printChildGen(gen, population, crossovers, mutations);
+
+    printParentGen(gen, parents, sumFitnesses, crossovers, mutations);
+    printChildGen(gen, population);
 
     for (int i=0; i<8; i++) {
         delete parents[i];
@@ -140,17 +140,17 @@ void iterate(int gen, uint16_t** population) {
 /*
  * Wrapper function for printing child generations.
  */
-void printChildGen(int gen, uint16_t** population, int* crossovers, int* mutations)
+void printChildGen(int gen, uint16_t** population)
 {
-    printGeneration(gen, population, false, 0, crossovers, mutations);
+    printGeneration(gen, population, false, 0, NULL, NULL);
 }
 
 /*
  * Wrapper function for printing parent generations.
  */
-void printParentGen(int gen, uint16_t** population, int sumFitnesses)
+void printParentGen(int gen, uint16_t** population, int sumFitnesses, int* crossovers, int* mutations)
 {
-    printGeneration(gen, population, true, sumFitnesses, NULL, NULL);
+    printGeneration(gen, population, true, sumFitnesses, crossovers, mutations);
 }
 
 /*
@@ -175,23 +175,21 @@ void printGeneration(int        gen,
         mutations = new int[8] {-1, -1, -1, -1, -1, -1, -1, -1 };
     }
 
-    cout << (parent?"\tParent ":"") << "Generation " << gen << endl;
+    cout << (parent?"Parent ":"") << "Generation " << gen << endl;
     for (int i=0; i<8; i++) {
+        cout << "[ ";
         if (parent) {
-            cout << (i%2?"":"\t") << "[";
             for (int j=14; j>=0; j-=2) {
-                cout << (((*population[i]>>j)&3)+1) << (j>0?",":"]");
+                if (j==mutations[i]) { cout << "~"; }
+                else { cout << (((*population[i]>>j)&3)+1); }
+                cout << (j==crossovers[i]?"|":" ") << (j>0?"":"]");
             }
-            cout << " (" << fitnesses[i] << ")" << (i%2?"\n":"\t/ ");
+            cout << " (" << fitnesses[i] << ")" << ((i+1)%4<2?"\n":"\n\t");
         } else {
-            cout << "[";
             for (int j=14; j>=0; j-=2) {
-                cout << (j==mutations[i]?"(":" ")
-                     << (((*population[i]>>j)&3)+1)
-                     << (j==mutations[i]?")":" ")
-                     << (j>0?"":"] ") << (j==crossovers[i]?"|":" ");
+                cout << (((*population[i]>>j)&3)+1) << " ";
             }
-            cout << "Fitness: " << fitnesses[i];
+            cout << "] Fitness: " << fitnesses[i];
             printf("\t(%.3f%%)\n",(float(fitnesses[i])/float(sumFitnesses)));
         }
     }

@@ -5,6 +5,6 @@ uint16_t** selectFromPopulation(uint16_t** population, int* fitnesses, int sumFi
 int*  crossover(uint16_t** population, uint16_t** parents);
 int*  mutate(uint16_t** population);
 void  iterate  (uint16_t** population);
-void  printChildGen  (int gen, uint16_t** population, int* crossovers=NULL, int* mutations=NULL);
-void  printParentGen (int gen, uint16_t** population, int sumFitnesses);
+void  printChildGen  (int gen, uint16_t** population);
+void  printParentGen (int gen, uint16_t** population, int sumFitnesses, int* crossovers=NULL, int* mutations=NULL);
 void  printGeneration(int gen, uint16_t** population, bool parent, int sumFitnesses, int* crossovers, int* mutations);
