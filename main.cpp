@@ -57,6 +57,13 @@ int* getFitnesses(bool parents) {
 // Prints one individual.
 void printIndividual(int index, bool parent, int* crossovers, int*mutations) {
     uint16_t individual = parent ? getParent(index) : getChild(index);
+    /*
+     * NOTE: The following conditionals are purely decorative and ensure 
+     * "proper" formatting, but do not change any of the underlying data.
+     * Pairs of "parent" individuals have crossover points indicated by a
+     * pipe (i.e., "|"), and mutated variables are surrounded with tildes
+     * (i.e., "~3~").
+     */
     cout << "[" << (parent?" ":"");
     {
         for (int i=14; i>=0; i-=2) {
@@ -89,16 +96,16 @@ void printPopulation(int gen, bool includeParents, bool includeChildren, int* cr
         if (includeParents) {
             if (i==-1) { cout << left << setw(20) << "Parents:" << setw(12) << "(f)"; }
             else {
-            printIndividual(i, true, crossovers, mutations);
-            cout << right << setw(3) << parentFitnesses[i] << "\t\t";
+                printIndividual(i, true, crossovers, mutations);
+                cout << right << setw(4) << parentFitnesses[i] << "\t\t";
             }
         }
         if (includeChildren) {
             if (i==-1) { cout << left << setw(20) << "Children:" << setw(9) << "(f)" << "(p)"; }
             else {
-            printIndividual(i, false, crossovers, mutations);
-            cout << right << setw(3) << childFitnesses[i];
-            printf("\t(%.3f%%)", float(childFitnesses[i])/float(sumChildFitnesses));
+                printIndividual(i, false, crossovers, mutations);
+                cout << right << setw(4) << childFitnesses[i];
+                printf("\t(%.3f%%)", float(childFitnesses[i])/float(sumChildFitnesses));
             }
         }
         cout << endl;
@@ -110,6 +117,7 @@ void printPopulation(int gen, bool includeParents, bool includeChildren, int* cr
     delete[] childFitnesses;
 }
 
+// Selects individuals at random (weighted by fitness) to be "parents" of the next generation.
 void selectionStage() {
     int* fitnesses   = getFitnesses(false);
     int sumFitnesses = 0;
@@ -119,7 +127,12 @@ void selectionStage() {
         int r = rand()%sumFitnesses;
         for (int j=0; j<8; j++) {
             if (r<fitnesses[j]) {
-                population[i] = (population[i]&((1<<16)-1)) + (population[j]<<16);
+                /*
+                 * NOTE: Bitwise operations here set the "parents" of the population
+                 * (i.e., the first 16 bits of each of the eight integers). There are
+                 * likely better ways of doing this.
+                 */
+                population[i] = population[i] - (getParent(i)<<16) + (population[j]<<16);
                 if (i%2&&getParent(i)==getParent(i-1)) { i--; }
                 break;
             } else {
@@ -130,8 +143,12 @@ void selectionStage() {
     delete[] fitnesses;
 }
 
+// Performs the genetic crossover.
 int* crossoverStage() {
     int* crossovers = new int[8];
+    // Replace the child generation with the parent generation,
+    // clear a randomly determined section of each individual, 
+    // and replace it with the matching section of its partner.
     for (int i=0; i<8; i+=2) {
         int r = rand()%7;
         crossovers[i]   = r;
@@ -139,14 +156,15 @@ int* crossoverStage() {
         uint32_t clearing = ~((1<<(((6-r)<<1)+2))-1);
         uint32_t reading  = (~clearing)<<16;
         uint32_t storing  = population[i];
-        population[i]   = (population[i]&~((1<<16)-1))   + (population[i]>>16);
-        population[i+1] = (population[i+1]&~((1<<16)-1)) + (population[i+1]>>16);
-        population[i]   = (clearing&population[i])       + ((reading&population[i+1])>>16);
-        population[i+1] = (clearing&population[i+1])     + ((reading&storing)>>16);
+        population[i]   = population[i]   - getChild(i)   + (getParent(i));
+        population[i+1] = population[i+1] - getChild(i+1) + (getParent(i+1));
+        population[i]   = (clearing&population[i])   + ((reading&population[i+1]) >> 16);
+        population[i+1] = (clearing&population[i+1]) + ((reading&storing)         >> 16);
     }
     return crossovers;
 }
 
+// Performs the genetic mutations (randomly, with a probability of around 30%).
 int* mutationStage() {
     int* mutations = new int[8];
     for (int i=0; i<8; i++) {
@@ -154,6 +172,7 @@ int* mutationStage() {
         if (r%10<3) {
             r = r%16;
             mutations[i] = r/2;
+            // Flip one bit in the child.
             if ((population[i]>>(15-r))&1) {
                 population[i] = population[i]&~(1<<(15-r));
             } else {
@@ -166,6 +185,7 @@ int* mutationStage() {
     return mutations;
 }
 
+// Creates a new (and replaces the old) generation of parents and children.
 void iterate(int gen) {
     selectionStage();
     int* crossovers = crossoverStage();
